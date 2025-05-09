@@ -80,7 +80,7 @@ class EyeBlinkDetector:
         # Obtener puntos oculares
         left_eye = [landmarks[i] for i in BLINK_INDICES['left_eye']]
         right_eye = [landmarks[i] for i in BLINK_INDICES['right_eye']]
-        
+         
         # Calcular EAR
         left_ear = self.calculate_ear(left_eye)
         right_ear = self.calculate_ear(right_eye)
