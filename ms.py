@@ -115,7 +115,7 @@ def detect_head_turn(lm):
         return True, round(min((vf - 1.3) * 3, 1.0), 2), "abajo"
     th = 0.2
     if abs(nx) > th:
-        return True, round(min(abs(nx) / th, 1.0), 2), ("izquierda" if nx < 0 else "derecha")
+        return True, round(min(abs(nx) / th, 1.0), 2), ("derecha" if nx < 0 else "izquierda")
     return False, 0.0, "centro"
 
 
@@ -263,6 +263,47 @@ async def detect_gestures(files: list[UploadFile] = File(...)):
     results["nodding"] = (head_up / total_frames >= 0.1) and (head_down / total_frames >= 0.1)
 
     return results
+
+@app.post("/detect_single_gesture")
+async def detect_single_gesture(image: UploadFile = File(...)):
+    """
+    Detecta el gesto en una sola imagen subida.
+    """
+    try:
+        # Leer la imagen subida
+        data = await image.read()
+        img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+        if img is None:
+            return {"gesture": "Imagen inválida"}
+
+        # Obtener landmarks de la imagen
+        landmarks = get_landmarks(img)
+        if not landmarks:
+            return {"gesture": "No se detectó ninguna cara"}
+
+        # Detectar gestos
+        blink, blink_conf = blink_detector.detect(landmarks)
+        smile, smile_conf = detect_smile(landmarks)
+        open_mouth, mouth_conf = detect_open_mouth(landmarks)
+        raised_eyebrows, eyebrows_conf = detect_raised_eyebrows(landmarks)
+        head_turn, _, direction = detect_head_turn(landmarks)
+
+        # Determinar el gesto predominante
+        if blink and blink_conf > 0.7:
+            return {"gesture": "blink"}
+        if smile and smile_conf > 0.7:
+            return {"gesture": "smile"}
+        if open_mouth and mouth_conf > 0.7:
+            return {"gesture": "open_mouth"}
+        if raised_eyebrows and eyebrows_conf > 1.0:
+            return {"gesture": "raised_eyebrows"}
+        if head_turn:
+            return {"gesture": f"Giro de cabeza hacia {direction}"}
+
+        return {"gesture": "Ningún gesto detectado"}
+    except Exception as e:
+        print(f"Error procesando la imagen: {e}")
+        return {"gesture": "Error procesando la imagen"}
 
 # Función auxiliar para landmarks (igual que antes)
 def get_landmarks(img):

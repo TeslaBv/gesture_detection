@@ -83,5 +83,35 @@ def detect_batch(images: List[UploadFile] = File(...)):
 
     return gesture_flags
 
+@app.post("/detect_single", response_model=str)
+def detect_single(image: UploadFile = File(...)):
+    """
+    Detecta el gesto en una sola imagen subida.
+    """
+    try:
+        # Leer la imagen subida
+        data = image.file.read()
+        np_arr = np.frombuffer(data, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        if img is None:
+            return "Imagen inválida"
+
+        # Procesar la imagen con Mediapipe
+        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        resp = hands.process(rgb)
+
+        if not resp.multi_hand_landmarks:
+            return "No se detectó ninguna mano"
+
+        # Detectar el gesto
+        landmarks = resp.multi_hand_landmarks[0].landmark
+        gesture = detect_gesture(landmarks)
+        return gesture
+    except Exception as e:
+        print(f"Error procesando la imagen: {e}")
+        return "Error procesando la imagen"
+    finally:
+        image.file.close()
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
